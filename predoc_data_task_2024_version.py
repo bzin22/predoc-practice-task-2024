@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import pandas as pd
+from pandas.api.types import is_numeric_dtype
 
 path = "~/predoc-practice-task-2024/Data/cps_women_lfp.csv"
 
@@ -85,34 +86,53 @@ def p1q2(data, group=None): # Among women 25 and over, which groups (race, age, 
 def p1q3(data, group=None): # examine trends among women 25 and over for wage & salary income, social insurance income, and education attainment
     only_women_over_25 = data[(data["sex"] == "Female") & # filter for women 25
                               (data["age"].isin(["25-34", "35-44", "45-54", "55-64", "65-74", "75+"]))].copy() 
-
+    
     filtered_data = only_women_over_25[only_women_over_25[group].notna()] # filter for women with group values that are not empty
-    wmed = weighted_median(filtered_data, group) # compute weighted median 
-    wmean = weighted_mean(filtered_data, group) # compute weighted mean 
+    
+    if is_numeric_dtype(filtered_data[group]):
+        wmed = weighted_median(filtered_data, group) # compute weighted median 
+        wmean = weighted_mean(filtered_data, group) # compute weighted mean 
 
-    # plot
-    plt.figure(figsize=(8, 5))
-    plt.plot(wmean.index, wmean.values, marker="o", label=f"Mean Weighted {group.capitalize()}", color="blue")
-    plt.plot(wmed.index, wmed.values, marker="o", label=f"Weighted Median {group.capitalize()}", color="orange")
-    plt.xlabel("Year")
-    plt.ylabel("Annual " + group.capitalize())
-    plt.legend()
-    plt.title(f"{group.capitalize()} vs Year")
-    plt.grid(True)
-    plt.show()
+        # plot
+        plt.figure(figsize=(8, 5))
+        plt.plot(wmean.index, wmean.values, marker="o", label=f"Mean Weighted {group.capitalize()}", color="blue")
+        plt.plot(wmed.index, wmed.values, marker="o", label=f"Weighted Median {group.capitalize()}", color="orange")
+        plt.xlabel("Year")
+        plt.ylabel("Annual " + group.capitalize())
+        plt.legend()
+        plt.title(f"{group.capitalize()} vs Year")
+        plt.grid(True)
+        plt.show()
+    else: 
+        weights_by_subgroup = filtered_data.groupby(["year", group])["wgt"].sum().unstack(level=group) # compute sum of weights by year and group
+        weighted_percent_by_subgroup = weights_by_subgroup.div(weights_by_subgroup.sum(axis=1), axis=0) # compute weighted percent by year and group
 
-################## PART 2 ##################
+        # plot
+        plt.figure(figsize=(8, 5))
+        for subgroup in weighted_percent_by_subgroup.columns:
+            plt.plot(weighted_percent_by_subgroup.index, weighted_percent_by_subgroup[subgroup], marker="o", label=f"{subgroup.capitalize()}")
+        plt.xlabel("Year")
+        plt.ylabel("Weighted Percent")
+        plt.legend()
+        plt.title(f"Weighted Percent for highest level of {group.capitalize()} vs Year")
+        plt.grid(True)
+        plt.show()
+
+def p1q6(data, group=None): # Create an alternative measure of labor force participation that excludes individuals from the labor force if they are self-employed in their main job (lfp = 0 if self-employed in main job). Using the new measure, describe how labor force participation for college-educated and not college-educated women has evolved since 1994.
+    only_women_over_25 = data[(data["sex"] == "Female") & # filter for women 25 and over with lfp values that are not empty
+                                      (data["lfp"].notna()) &
+                                      (data["age"].isin(["25-34", "35-44", "45-54", "55-64", "65-74", "75+"]))].copy() 
 
 ################## MAIN FUNCTION ##################
 if __name__ == "__main__":
     df = load_data(path)
 
-    # p1q1(df)    
-    # p1q2(df, group="race") 
-    # p1q2(df, group="age")
-    # p1q2(df, group="income_quantiles")
-    # p1q2(df, group="education")
-    # p1q2(df, group="college")
-    # p1q3(df, group="income")
-    # p1q3(df, group="incss")
-    
+    # p1q1(df) # figure 1
+    # p1q2(df, group="race") # figure 1
+    # p1q2(df, group="age") # figure 2
+    # p1q2(df, group="income_quantiles") # figure 3
+    # p1q2(df, group="education") # figure 4
+    # p1q2(df, group="college") # figure 5
+    # p1q3(df, group="income") # 3a figure 1
+    # p1q3(df, group="incss") # 3b figure 1
+    # p1q3(df, group="education") # 3c figure 1
