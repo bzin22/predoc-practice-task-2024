@@ -123,6 +123,24 @@ def p1q6(data, group=None): # Create an alternative measure of labor force parti
                                       (data["lfp"].notna()) &
                                       (data["age"].isin(["25-34", "35-44", "45-54", "55-64", "65-74", "75+"]))].copy() 
 
+    # if self-employed  == 1, then set lfp = 0
+    only_women_over_25.loc[only_women_over_25["self_employed"] == "Self-employed", "lfp"] = "Not in labor force"
+
+    rates = yearly_weighted_lfp(only_women_over_25, group) # compute weighted lfp rates for all women
+    rates_by_group = rates.unstack(level=group) # unstack the multi-index series to a data table for plotting
+
+    # plot
+    plt.figure(figsize=(8, 5))
+    for group_value in rates_by_group.columns:
+        plt.plot(rates_by_group.index, rates_by_group[group_value], marker="o", label=group_value)
+    plt.xlabel("Year")
+    plt.ylabel("Annual LFP")
+    plt.legend()
+    plt.title(f"Weighted LFP by {group.capitalize()} vs Year")
+    plt.grid(True)
+    plt.show()
+
+
 ################## MAIN FUNCTION ##################
 if __name__ == "__main__":
     df = load_data(path)
@@ -136,3 +154,4 @@ if __name__ == "__main__":
     # p1q3(df, group="income") # 3a figure 1
     # p1q3(df, group="incss") # 3b figure 1
     # p1q3(df, group="education") # 3c figure 1
+    p1q6(df, group="college") # figure 1
