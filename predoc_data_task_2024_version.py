@@ -22,6 +22,7 @@ def yearly_weighted_lfp(data, group=None): # rate of lfp per year = sum(wgt_i / 
     if group is not None: 
         data["lfp * wgt"] = data["lfp * wgt"] / data.groupby(["year", group])["wgt"].transform(sum) # compute weighted lfp rates
         data = data.rename(columns={"lfp * wgt": "weighted_lfp"}) # rename column appropiately
+        # print(data[data["year"] == 2022, data["covid_telework"]])
         rates = data.groupby(["year", group])["weighted_lfp"].sum() # compute sum of weighted lfp rates by year and group
     else: 
         yearly_weighted_sum = data.groupby("year")["wgt"].sum() # group by year and sum all the weights in each year
@@ -140,6 +141,53 @@ def p1q6(data, group=None): # Create an alternative measure of labor force parti
     plt.grid(True)
     plt.show()
 
+################## PART 2 ##################
+def p2q1(data): # how have wages, employment, and labor force participation changed for women who had telework from 2020-2024 and women who did not?
+    # only_women_2020_2024 = data[(data["sex"] == "Female") & 
+    #                             data["covid_telework"].notna() &
+    #                             data["wageinc_quantiles"].notna() &
+    #                             data["telework_now"].notna() &
+    #                             data["year"].isin([2020, 2021, 2022, 2023, 2024])].copy() # filter for women from 2020-2024
+
+    # only_women_2020_2024["telework_status"] = "Not enough information" # create a new column to indicate telework status
+    # only_women_2020_2024.loc[only_women_2020_2024["telework_now"] == "Had telework in the past week", "telework_status"] = "Teleworked between 2020-2024"
+    # only_women_2020_2024.loc[only_women_2020_2024["covid_telework"] == "Telework from 2021-2022 due to COVID", "telework_status"] = "Teleworked between 2020-2024"
+
+    women = data[(data["sex"] == "Female") & data["year"].isin([2020, 2021, 2022, 2023, 2024])]
+    only_women_2020_2024 = women[(women["covid_telework"].notna() | women["telework_now"].notna()) &
+                                 (women["employed"] == "Employed")].copy()
+
+    only_women_2020_2024["telework_status"] = "Did not telework"
+    only_women_2020_2024.loc[only_women_2020_2024["telework_now"] == "Had telework in the past week", "telework_status"] = "Teleworked between 2020-2024"
+    only_women_2020_2024.loc[only_women_2020_2024["covid_telework"] == "Telework from 2021-2022 due to COVID", "telework_status"] = "Teleworked between 2020-2024"
+    only_women_2020_2024["teleworked"] = (only_women_2020_2024["telework_status"] == "Teleworked between 2020-2024").astype(int)
+
+    # income is on different survey rows than telework answers, so attach it by person ID and year
+    incomes = women[women["income"].notna()].drop_duplicates(["cpsidp", "year"])[["cpsidp", "year", "income"]]
+    only_women_2020_2024 = only_women_2020_2024.drop(columns="income").merge(incomes, on=["cpsidp", "year"], how="inner")
+
+    # plot
+    plt.figure(figsize=(12, 12))
+    for status, status_rows in only_women_2020_2024.groupby("telework_status"):
+        wmean = weighted_mean(status_rows.copy(), "income")
+        plt.plot(wmean.index, wmean.values, marker="o", label=f"{status} (weighted mean)")
+    plt.xlabel("Year")
+    plt.ylabel("Annual income")
+    plt.legend()
+    plt.title("Mean Income for Teleworking vs Non-Teleworking Women by Year")
+    plt.grid(True)
+    plt.show()
+
+    plt.figure(figsize=(12, 12))
+    for status, status_rows in only_women_2020_2024.groupby("telework_status"):
+        wmed = weighted_median(status_rows, "income")
+        plt.plot(wmed.index, wmed.values, marker="o", linestyle="--", label=f"{status} (weighted median)")
+    plt.xlabel("Year")
+    plt.ylabel("Annual income")
+    plt.legend()
+    plt.title("Median Income for Teleworking vs Non-Teleworking Women by Year")
+    plt.grid(True)
+    plt.show()
 
 ################## MAIN FUNCTION ##################
 if __name__ == "__main__":
@@ -154,4 +202,5 @@ if __name__ == "__main__":
     # p1q3(df, group="income") # 3a figure 1
     # p1q3(df, group="incss") # 3b figure 1
     # p1q3(df, group="education") # 3c figure 1
-    p1q6(df, group="college") # figure 1
+    # p1q6(df, group="college") # figure 1
+    p2q1(df) # figure 1
